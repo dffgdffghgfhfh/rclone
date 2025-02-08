@@ -1,26 +1,16 @@
-FROM golang:alpine AS builder
-
-COPY . /go/src/github.com/rclone/rclone/
-WORKDIR /go/src/github.com/rclone/rclone/
-
-RUN apk add --no-cache make bash gawk git
-RUN \
-  CGO_ENABLED=0 \
-  make
-RUN ./rclone version
-
-# Begin final image
 FROM alpine:latest
 
-LABEL org.opencontainers.image.source="https://github.com/rclone/rclone"
+# 安装依赖
+RUN apk --no-cache add ca-certificates fuse curl
 
-RUN apk --no-cache add ca-certificates fuse3 tzdata && \
-  echo "user_allow_other" >> /etc/fuse.conf
+# 下载并安装 rclone
+RUN curl -O https://downloads.rclone.org/rclone-v1.60.1-linux-amd64.zip \
+    && unzip rclone-v1.60.1-linux-amd64.zip \
+    && cp rclone-v1.60.1-linux-amd64/rclone /usr/local/bin/ \
+    && chmod 755 /usr/local/bin/rclone \
+    && rm -r rclone-v1.60.1-linux-amd64.zip rclone-v1.60.1-linux-amd64
 
-COPY --from=builder /go/src/github.com/rclone/rclone/rclone /usr/local/bin/
-
-RUN addgroup -g 1009 rclone && adduser -u 1009 -Ds /bin/sh -G rclone rclone
-
+# 设置 rclone 为默认命令
 ENTRYPOINT [ "rclone" ]
 
 WORKDIR /data
